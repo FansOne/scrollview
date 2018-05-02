@@ -1,0 +1,50 @@
+<script>
+  import wepy from 'wepy'
+  import ScrollView from '../components/ScrollView'
+
+  export default class extends wepy.page {
+    data = {
+      tabs: ['111', '222', '333', '444', '555', '666', '777', '888', '999', '000'],
+      colors: ['red', 'blueviolet', 'yellow', 'blue', 'orange', 'aqua', 'gray', 'green', 'purple', 'black']
+    }
+    config = {
+      enablePullDownRefresh: false,
+      disableScroll: true
+    }
+
+    components = {
+      ScrollView
+    }
+
+    onLoad() {
+    }
+
+    methods = {
+      click() {
+        console.log('click')
+      }
+    }
+  }
+</script>
+
+
+<template>
+  <view class="mainView">
+
+    <ScrollView :tabs.sync="tabs">
+      <repeat for="{{colors}}" slot="subView">
+        <view @tap="click" style="width: 750rpx; height: 100%; display: inline-block; background-color: {{item}}" >
+          {{item}}
+        </view>
+      </repeat>
+    </ScrollView>
+  </view>
+</template>
+
+
+<style>
+  .mainView {
+    width: 750rpx;
+    height: 1138rpx;
+  }
+</style>

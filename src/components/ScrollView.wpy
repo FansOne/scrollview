@@ -1,0 +1,277 @@
+<style>
+
+  .TopView {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+  }
+
+  .TopViewEnum {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+  }
+
+  .stv-container {
+    width: 100%;
+    height: 100%;
+  }
+
+  .withAnimate {
+    transition: all 100ms ease;
+    -webkit-transform: translate3d(0, 0, 0);
+    -moz-transform: translate3d(0, 0, 0);
+    -ms-transform: translate3d(0, 0, 0);
+    transform: translate3d(0, 0, 0);
+    -webkit-backface-visibility: hidden;
+    -moz-backface-visibility: hidden;
+    -ms-backface-visibility: hidden;
+    backface-visibility: hidden;
+    -webkit-perspective: 1000;
+    -moz-perspective: 1000;
+    -ms-perspective: 1000;
+    perspective: 1000;
+  }
+
+  .stv-container .tab-bar {
+    width: 100%;
+    position: relative;
+    display: flex;
+    font-size: 30rpx;
+    color: white;
+    background-color: #444349;
+  }
+
+  .stv-container .tab-bar .tab-active {
+    color: white;
+    font-weight: bold;
+  }
+
+  .stv-container .tab-bar .tab {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding-top: 16rpx;
+    padding-bottom: 20rpx;
+  }
+
+  .under-line {
+    bottom: 0;
+    height: 6rpx;
+    background-color: #bf3d2b;
+  }
+
+  .stv-container .scroll-view {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    background: #e7eaef;
+  }
+
+  .stv-container .scroll-view .scroll-view-wrapper {
+    position: absolute;
+    top: 0;
+    bottom: 80rpx;
+    display: flex;
+  }
+
+  .stv-container .scroll-view .scroll-view-wrapper {
+    height: 100%;
+  }
+</style>
+
+<template>
+
+  <view class="stv-container">
+    <view class="tab-bar">
+      <view style="margin-left: -{{scrollLeft}}px;"
+            bindtouchstart="TopViewTouchStart" catchtouchmove="TopViewTouchMove" bindtouchend="TopViewTouchEnd"
+            class="TopView {{!stv.tStart? 'withAnimate': ''}}">
+        <view class="TopViewEnum">
+          <repeat for='{{tabs}}'>
+            <view @tap="handlerTabTap({{index}})" class="tab {{activeTab==index?'tab-active':''}}"
+                  style="width: {{stv.lineWidth}}px; display: inline-block; text-align: center">
+              <text>{{item}}</text>
+            </view>
+          </repeat>
+        </view>
+        <view style="width: {{stv.lineWidth}}px; margin-left: {{stv.offset/tabsCount}}px"
+              class="under-line {{!stv.tStart? 'withAnimate': ''}}"></view>
+      </view>
+
+
+    </view>
+
+    <view class="scroll-view">
+      <view bindtouchstart="touchStart" catchtouchmove="touchMove" bindtouchcancel="touchCancel"
+            bindtouchend="touchEnd" class="scroll-view-wrapper {{!stv.tStart? 'withAnimate': ''}}"
+            style="left: -{{stv.offset}}px">
+        <slot name="subView"></slot>
+      </view>
+    </view>
+  </view>
+</template>
+
+<script>
+  import wepy from 'wepy'
+
+  export default class ScrollView extends wepy.component {
+    props = {
+      tabs: {
+        type: Array,
+        default: null
+      }
+    }
+
+    data = {
+      stv: {
+        windowWidth: 0,
+        lineWidth: 0,
+        offset: 0,
+        tStart: false
+      },
+      activeTab: 0,
+      lastActiveTab: 0,
+      startX: 0,
+      isMove: false,
+      tabsCount: 0,
+      offset: 0,
+      scrollLeft: 0,
+      topStartX: 0,
+      maxCount: 5
+    }
+
+    onLoad() {
+      wepy.getSystemInfo({
+        success: (res) => {
+          this.stv.windowWidth = res.windowWidth
+          this.tabsCount = this.tabs.length
+          if (this.tabsCount > this.maxCount) {
+            this.tabsCount = this.maxCount
+          }
+          this.stv.lineWidth = this.stv.windowWidth / this.tabsCount
+          this.$apply()
+        }
+      })
+    }
+
+    methods = {
+      touchStart(e) {
+        this.isMove = false
+        let {clientX, clientY} = e.touches[0]
+        this.startX = clientX
+        this.tapStartX = clientX
+        this.tapStartY = clientY
+        this.tapStartTime = e.timeStamp
+        this.stv.tStart = true
+      },
+
+      touchMove(e) {
+        this.isMove = true
+        let {clientX} = e.touches[0]
+        let offsetX = this.startX - clientX
+        this.startX = clientX
+        this.stv.offset += offsetX
+        if (this.stv.offset <= 0) {
+          this.stv.offset = 0
+        } else if (this.stv.offset >= this.stv.windowWidth * (this.tabs.length - 1)) {
+          this.stv.offset = this.stv.windowWidth * (this.tabs.length - 1)
+        }
+      },
+
+      touchCancel(e) {
+        this._updateScrollView(e)
+      },
+
+      touchEnd(e) {
+        this._updateScrollView(e)
+      },
+
+      handlerTabTap(index, e) {
+        if (this.activeTab === index) {
+          return
+        }
+        this.activeTab = index
+        this.stv.offset = this.stv.windowWidth * index
+        this._updateTopScrollView(e)
+      },
+      TopViewTouchStart(e) {
+        let {clientX} = e.touches[0]
+        this.topStartX = clientX
+        this.stv.tStart = true
+      },
+
+      TopViewTouchMove(e) {
+        let {clientX} = e.touches[0]
+
+        let offsetX = this.topStartX - clientX
+        this.topStartX = clientX
+        this.scrollLeft += offsetX
+
+        let max = this.stv.lineWidth * (this.tabs.length - this.maxCount)
+
+        if (this.scrollLeft <= 0) {
+          this.scrollLeft = 0
+        } else if (this.scrollLeft >= max) {
+          this.scrollLeft = max
+        }
+      },
+      TopViewTouchEnd() {
+        this.stv.tStart = false
+      }
+    }
+
+    _updateScrollView(e) {
+      if (!this.isMove) {
+        return
+      }
+      let {clientX, clientY} = e.changedTouches[0]
+      let endTime = e.timeStamp
+      let {offset, windowWidth} = this.stv
+      //快速滑动
+      //向左
+      if (endTime - this.tapStartTime <= 300 && Math.abs(this.tapStartY - clientY) < 50) {
+        if (this.tapStartX - clientX > 5 && this.activeTab < this.tabs.length - 1) {
+          this.activeTab++
+        } else if (this.activeTab > 0) {
+          this.activeTab--
+        }
+        this.stv.offset = this.stv.windowWidth * this.activeTab
+      } else {
+        //快速滑动 但是Y距离大于50 所以用户是左右滚动
+        let page = Math.round(offset / windowWidth)
+        this.activeTab = page
+        this.stv.offset = this.stv.windowWidth * page
+      }
+
+      this._updateTopScrollView()
+      this.stv.tStart = false
+    }
+
+    _updateTopScrollView(e) {
+      if (this.lastActiveTab === this.activeTab) {
+        return
+      }
+      let nextItemLeft = this.activeTab * this.stv.lineWidth
+      if (nextItemLeft >= this.scrollLeft + this.stv.lineWidth &&
+        nextItemLeft <= this.scrollLeft + this.stv.lineWidth * 3) {
+        this.lastActiveTab = this.activeTab
+        return
+      }
+      if (this.lastActiveTab - this.activeTab > 0) {
+        this.scrollLeft = (this.activeTab - 1) * this.stv.lineWidth
+      } else {
+        this.scrollLeft = (this.activeTab - this.maxCount + 2) * this.stv.lineWidth
+      }
+
+      let max = (this.tabs.length - this.tabsCount) * this.stv.lineWidth
+
+      if (this.scrollLeft < 0) {
+        this.scrollLeft = 0
+      } else if (this.scrollLeft > max) {
+        this.scrollLeft = max
+      }
+      this.lastActiveTab = this.activeTab
+    }
+  }
+</script>
